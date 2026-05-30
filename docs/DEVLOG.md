@@ -296,6 +296,46 @@ self-mapping safety net (every category → itself). Fixes:
 Classify + taxonomy are Claude-only and done. The Cognee graph stage needs
 `OPENAI_API_KEY` (embeddings) and a pgvector Postgres. Code is built and waiting.
 
+## 2026-05-30 — 🎉 End-to-end: the Cognee/pgGraph knowledge graph runs
+
+Built the graph on 20 classified items and queried it. The full chain works:
+Slack → enrich → classify → taxonomy → **Cognee `cognify` on pgGraph** → query.
+
+### Result
+Postgres (pgvector, :5434) after a 20-doc build: **203 nodes / 618 edges** —
+120 entities, 20 TextDocument/DocumentChunk/TextSummary each, 17 EntityType,
+**6 NodeSet** (our category domains). A `GRAPH_COMPLETION` query —
+*"What have I saved about AI agents and Claude Code?"* — returned a synthesized,
+sourced answer (surfaced Thariq's "Claude Code is All You Need", linked Claude
+Code → AI agents → Anthropic, echoed our tags). The pgGraph adapter runs in
+**SQL-fallback** (stock pgvector image has no `graph` extension) and is correct.
+
+### The gauntlet of gotchas (all real, all blog-worthy)
+1. **CLI imported every stage's SDK at top** → the cognee-only venv (no
+   anthropic/slack-sdk) couldn't even load `skc graph`. Fix: lazy per-command
+   imports.
+2. **`pgvector` python pkg** missing → PGVectorAdapter import error. Added to the
+   `[graph]` extra.
+3. **`anthropic` SDK** required after all — cognee's instructor adapter imports it
+   directly when `LLM_PROVIDER=anthropic` (it's already a base dep on full install).
+4. **LLM preflight timeout (30s)** with instructor+anthropic → set
+   `COGNEE_SKIP_CONNECTION_TEST=true`; real calls work.
+5. **401 invalid x-api-key** — the killer: `.env` still had the *placeholder*
+   `LLM_API_KEY=sk-ant-your-key-here` (cognee's own var), which my loader preferred
+   over the real `ANTHROPIC_API_KEY`. Fix: prefer the real key, ignore
+   `*-your-key-here` placeholders, and mirror into the env vars litellm reads.
+6. Same blank-env-shadow issue as before — `_configure_cognee` now unshadows any
+   blank key defined in `.env`.
+
+### Setup notes (for reproducing / hosting)
+- Two venvs: base `.venv` (ingest/enrich/classify/taxonomy) and `.venv-cognee`
+  (cognee 1.1.1 + adapter + pgvector + anthropic + skc) for the graph stage.
+- Dedicated `skc-pgvector` container on **:5434** (compose + .env updated to match;
+  leaves the pre-existing :5433 container alone).
+
+> **Blog hook:** "Six errors between me and my knowledge graph — a field guide to
+> wiring Cognee + a community adapter + Postgres from scratch."
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback

@@ -12,11 +12,12 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from .classify import classify_channel
 from .config import load_settings
-from .enrich import enrich_channel
-from .ingest import ingest_channel
 from .store import load_cursors, read_items
+
+# Stage functions (ingest/enrich/classify/graph) are imported lazily inside each
+# command so the CLI loads even when only some stage deps are installed (e.g. the
+# cognee-only venv used for `graph`, which has no anthropic/slack-sdk).
 
 app = typer.Typer(
     name="skc",
@@ -55,6 +56,8 @@ def ingest(
     dry_run: bool = typer.Option(False, "--dry-run", help="Fetch one page; write nothing."),
 ) -> None:
     """Export channel messages + threads to data/raw/<channel>.jsonl."""
+    from .ingest import ingest_channel
+
     settings = load_settings()
     try:
         for ch in _resolve_channels(channel):
@@ -75,6 +78,8 @@ def enrich(
     dry_run: bool = typer.Option(False, "--dry-run", help="Resolve links; write nothing."),
 ) -> None:
     """Resolve X.com links (oEmbed) and page titles → data/enriched/."""
+    from .enrich import enrich_channel
+
     settings = load_settings()
     try:
         for ch in _resolve_channels(channel):
@@ -92,6 +97,8 @@ def classify(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show plan + sample doc; no API calls."),
 ) -> None:
     """Summarize + classify each item with Claude → data/classified/."""
+    from .classify import classify_channel
+
     settings = load_settings()
     try:
         for ch in _resolve_channels(channel):

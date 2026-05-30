@@ -43,8 +43,14 @@ def _pg_url(host: str, port: str, name: str, user: str, pw: str) -> str:
 
 def _configure_cognee(settings: Settings):
     """Point Cognee at the all-Postgres + pgGraph backend, reading config from .env."""
-    from dotenv import load_dotenv
+    from dotenv import dotenv_values, load_dotenv
 
+    # A blank exported var (e.g. ANTHROPIC_API_KEY='') shadows .env AND is read
+    # directly by litellm/cognee, breaking LLM/embedding calls. Drop blanks for
+    # any key defined in .env so the real value loads below.
+    for k in dotenv_values():
+        if os.environ.get(k, None) == "":
+            del os.environ[k]
     load_dotenv()  # ensure Cognee (which reads os.environ) sees LLM_*/EMBEDDING_*/DB_*
 
     import cognee
@@ -95,12 +101,25 @@ def _configure_cognee(settings: Settings):
     # LLM (Anthropic) + embeddings (OpenAI).
     cognee.config.set_llm_provider(os.getenv("LLM_PROVIDER", "anthropic"))
     cognee.config.set_llm_model(os.getenv("LLM_MODEL", "claude-haiku-4-5"))
-    if os.getenv("LLM_API_KEY") or settings.anthropic_api_key:
-        cognee.config.set_llm_api_key(os.getenv("LLM_API_KEY") or settings.anthropic_api_key)
+
+    # Resolve the LLM key robustly: prefer the real ANTHROPIC_API_KEY (via
+    # Settings, which drops blank shadows), fall back to LLM_API_KEY — but never
+    # an unfilled placeholder. Mirror it into the env vars litellm reads.
+    def _real(v: str | None) -> str:
+        return v if v and "your-key-here" not in v else ""
+
+    llm_key = _real(settings.anthropic_api_key) or _real(os.getenv("LLM_API_KEY"))
+    if llm_key:
+        cognee.config.set_llm_api_key(llm_key)
+        os.environ["LLM_API_KEY"] = llm_key
+        os.environ["ANTHROPIC_API_KEY"] = llm_key
+
     cognee.config.set_embedding_provider(os.getenv("EMBEDDING_PROVIDER", "openai"))
     cognee.config.set_embedding_model(os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"))
-    if os.getenv("OPENAI_API_KEY"):
-        cognee.config.set_embedding_api_key(os.getenv("OPENAI_API_KEY"))
+    emb_key = _real(os.getenv("OPENAI_API_KEY")) or _real(os.getenv("EMBEDDING_API_KEY"))
+    if emb_key:
+        cognee.config.set_embedding_api_key(emb_key)
+        os.environ["OPENAI_API_KEY"] = emb_key
 
     return cognee
 

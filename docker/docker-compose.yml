@@ -16,8 +16,10 @@ services:
       POSTGRES_USER: cognee
       POSTGRES_PASSWORD: cognee
       POSTGRES_DB: cognee
+    # 5434 keeps us clear of any other local Postgres (incl. a stock pgGraph
+    # demo container) already bound to 5433. Matches .env's *_PORT=5434.
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - skc_pgdata:/var/lib/postgresql/data
     healthcheck:

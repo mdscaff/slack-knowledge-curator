@@ -20,8 +20,9 @@ dependencies = [
 # The graph stage. Kept optional so `ingest`/`enrich`/`classify` run without a
 # heavy Cognee install. Mirrors the cognee-community pgGraph adapter's deps.
 graph = [
-    "cognee>=1.1.1,<2",  # audited against v1.1.1 (released 2026-05-29); see docs/DEVLOG.md
+    "cognee>=1.1.1,<2",  # audited + runtime-verified against v1.1.1; see docs/DEVLOG.md
     "asyncpg>=0.29",
+    "pgvector>=0.3",     # cognee's PGVectorAdapter needs the sqlalchemy Vector type
     # The pgGraph adapter is NOT on PyPI — install from the cognee-community
     # monorepo subdirectory. (Publishing it is a tracked upstream opportunity.)
     "cognee-community-graph-adapter-pggraph @ git+https://github.com/topoteretes/cognee-community.git#subdirectory=packages/graph/pggraph",
