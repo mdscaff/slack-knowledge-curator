@@ -105,6 +105,7 @@ src/skc/
 
 ## Related
 
+- [CHANGELOG.md](CHANGELOG.md) — release notes.
 - [Cognee](https://github.com/topoteretes/cognee) — the memory/knowledge-graph engine this builds on.
 - [pgGraph adapter](https://github.com/topoteretes/cognee-community/tree/main/packages/graph/pggraph) — the community graph adapter exercised here.
 - [docs/cognee-postgres-vs-pggraph.md](docs/cognee-postgres-vs-pggraph.md) — native Cognee Postgres vs. pgGraph, and the adapter's current gaps.
