@@ -86,4 +86,4 @@ src/skc/
 
 ## License
 
-MIT (intended — add a LICENSE file before publishing).
+[MIT](LICENSE) © 2026 Marvin Scaff
