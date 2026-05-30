@@ -191,12 +191,18 @@ async def _build(settings: Settings, channel: str, limit: int | None, reset: boo
     )
 
 
-async def _query(settings: Settings, text: str, query_type: str, top_k: int):
+async def _query(
+    settings: Settings, text: str, query_type: str, top_k: int, domain: str | None
+):
     cognee = _configure_cognee(settings)
     from cognee import SearchType
 
     st = getattr(SearchType, query_type.upper(), SearchType.GRAPH_COMPLETION)
-    return await cognee.search(query_text=text, query_type=st, top_k=top_k)
+    kwargs = {"query_text": text, "query_type": st, "top_k": top_k}
+    if domain:
+        # Restrict retrieval to one category domain (our node_set tags).
+        kwargs["node_name"] = [domain]
+    return await cognee.search(**kwargs)
 
 
 def build_graph(settings: Settings, channel: str, *, limit: int | None = None, reset: bool = False):
@@ -206,8 +212,15 @@ def build_graph(settings: Settings, channel: str, *, limit: int | None = None, r
     asyncio.run(_build(settings, channel, limit, reset))
 
 
-def query_graph(settings: Settings, text: str, *, query_type: str = "GRAPH_COMPLETION", top_k: int = 10):
+def query_graph(
+    settings: Settings,
+    text: str,
+    *,
+    query_type: str = "GRAPH_COMPLETION",
+    top_k: int = 10,
+    domain: str | None = None,
+):
     import asyncio
 
     _require_cognee()
-    return asyncio.run(_query(settings, text, query_type, top_k))
+    return asyncio.run(_query(settings, text, query_type, top_k, domain))

@@ -157,17 +157,36 @@ def query(
     text: str = typer.Argument(..., help="Natural-language question."),
     type: str = typer.Option("GRAPH_COMPLETION", "--type", "-t", help="Cognee SearchType."),
     top_k: int = typer.Option(10, "--top-k"),
+    domain: str = typer.Option(None, "--domain", "-d", help="Restrict to a category domain."),
 ) -> None:
-    """Query the knowledge graph via Cognee."""
+    """Query the knowledge graph via Cognee.
+
+    SearchType examples: GRAPH_COMPLETION (answer), SUMMARIES, CHUNKS, RAG_COMPLETION.
+    """
+    from rich.markdown import Markdown
+    from rich.panel import Panel
+
     from .graph import query_graph
 
     settings = load_settings()
     try:
-        results = query_graph(settings, text, query_type=type, top_k=top_k)
+        results = query_graph(settings, text, query_type=type, top_k=top_k, domain=domain)
     except RuntimeError as exc:
         _fail(exc)
+
+    title = f"[bold]{escape(text)}[/]" + (f"  [dim](domain: {escape(domain)})[/]" if domain else "")
+    if not results:
+        console.print(Panel("[dim]No results.[/]", title=title))
+        return
     for r in results:
-        console.print(r)
+        payload = getattr(r, "search_result", r)
+        if isinstance(payload, str):
+            body = Markdown(payload)
+        elif isinstance(payload, list):
+            body = "\n".join(f"• {item}" for item in payload) or "[dim](empty)[/]"
+        else:
+            body = str(payload)
+        console.print(Panel(body, title=title, border_style="cyan"))
 
 
 @app.command()
