@@ -264,6 +264,38 @@ categories are inherently fragmented; a **consolidation pass** (M4) that merges
 them into a coherent tree is essential before the graph. Notably it's Claude-only
 — no embeddings — so it can run before the OpenAI key is in play.
 
+## 2026-05-30 — M4 taxonomy consolidation (the fragmentation fix)
+
+Full classify of 392 → **331 categories across 76 domains**. Coherent at the top
+(AI 267, Engineering 127, Social Media 68, Startups 65) but a long tail of
+near-duplicates. Built `skc taxonomy`: one Sonnet call ingests all raw categories
++ counts and returns a clean tree + a `from→to` mapping for every category;
+`--assign` rewrites each item to canonical labels. `taxonomy.json` is hand-editable
+(lockable domains, re-runnable).
+
+### Result
+**331 → 47 canonical categories (284 collapsed), 10 domains, 391 items reassigned.**
+Clean shape: AI 252, Developer Tools 142, Social Media & Content 71, Engineering
+62, Startups & Business 52, Productivity & Learning 32, Misc 24, Finance & Crypto
+19, Leadership & Career 15, Product & Design 12.
+
+### Gotcha: tool-output truncation silently produced an identity mapping
+First run "reassigned 0 items." Cause: `max_tokens=4000` truncated the 331-entry
+mapping mid-tool-call, so the partial/empty mapping fell through to the
+self-mapping safety net (every category → itself). Fixes:
+- Scale `max_tokens` with the category count (~40 tok/category, capped).
+- Check `stop_reason == "max_tokens"` and warn.
+- Log "mapped X/Y → Z canonical (N collapsed)" so a no-op consolidation is
+  obvious instead of silent.
+
+> **Blog hook:** "The identity mapping that did nothing — how a silent
+> max_tokens truncation hid a broken consolidation, and the one log line that
+> would have caught it."
+
+### Next: the graph (needs the OpenAI embeddings key)
+Classify + taxonomy are Claude-only and done. The Cognee graph stage needs
+`OPENAI_API_KEY` (embeddings) and a pgvector Postgres. Code is built and waiting.
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback

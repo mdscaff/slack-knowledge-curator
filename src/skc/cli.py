@@ -103,11 +103,28 @@ def classify(
 
 @app.command()
 def taxonomy(
-    discover: bool = typer.Option(False, "--discover", help="Run the discovery pass."),
-    assign: bool = typer.Option(False, "--assign", help="Assign items to the taxonomy."),
+    channel: str = typer.Option(None, "--channel", "-c"),
+    discover: bool = typer.Option(False, "--discover", help="Consolidate raw categories."),
+    assign: bool = typer.Option(False, "--assign", help="Reassign items to canonical labels."),
+    model: str = typer.Option(None, "--model", help="Model for discovery (default Sonnet)."),
 ) -> None:
-    """Build/curate the emergent category taxonomy → data/taxonomy.json."""
-    console.print(_NOT_YET.format(m="M4"))
+    """Consolidate + assign the emergent taxonomy → data/taxonomy.json.
+
+    With no flags, runs discover then assign.
+    """
+    from . import taxonomy as tax
+
+    settings = load_settings()
+    do_all = not discover and not assign
+    try:
+        for ch in _resolve_channels(channel):
+            console.print(f"[bold]Taxonomy[/] for {ch}")
+            if discover or do_all:
+                tax.discover(settings, ch, model=model)
+            if assign or do_all:
+                tax.assign(settings, ch)
+    except RuntimeError as exc:
+        _fail(exc)
 
 
 @app.command()
