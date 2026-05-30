@@ -336,6 +336,28 @@ Code → AI agents → Anthropic, echoed our tags). The pgGraph adapter runs in
 > **Blog hook:** "Six errors between me and my knowledge graph — a field guide to
 > wiring Cognee + a community adapter + Postgres from scratch."
 
+## 2026-05-30 — Full graph (392) + interactive entity visualization
+
+Full build finished: **3,225 nodes / 12,923 edges** (1,967 entities, 392
+docs/chunks/summaries, 72 entity types, 10 NodeSets). The rate-limit retries just
+made it slow, not fragile. Demo queries against the complete graph return
+synthesized, sourced answers; `--domain` filtering scopes by category.
+
+### Visualization (`scripts/visualize_graph.py`)
+Self-contained interactive HTML (vis-network): centers on the **top N entities by
+degree**, draws their entity↔entity *semantic* edges (drops structural
+`belongs_to_set`/`contains`/`is_a` noise), and gives each top entity a **toggle
+switch** to show/hide it and its connections live. Visibility rule: a neighbor
+stays iff it links to ≥1 active top entity.
+
+Top 8: x(100), claude(92), ai agents(92), openclaw(89), claude code(74),
+github(71), anthropic(67), prompt engineering(44) → 90 nodes / 127 edges, 8
+color-coded hubs. Verified the toggles end-to-end with a headless browser
+(turning three off correctly drops their exclusive neighbors).
+
+> **Blog hook:** "Seeing my Slack brain: an interactive map of the 8 ideas I save
+> about most." (Lead image: the 8-hub graph.)
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback

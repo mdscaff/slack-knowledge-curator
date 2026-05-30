@@ -66,6 +66,10 @@ docker compose -f docker/docker-compose.yml up -d
 skc ingest --channel C0123ABCD          # full history
 skc ingest --channel C0123ABCD --incremental   # later: only new messages
 skc status
+
+# Later stages (after classify + graph build):
+skc query "what have I saved about AI agents?" --domain "AI"
+.venv-cognee/bin/python scripts/visualize_graph.py 8   # interactive viz → data/viz/graph.html
 ```
 
 ## Configuration

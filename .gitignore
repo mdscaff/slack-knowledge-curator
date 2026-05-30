@@ -22,3 +22,7 @@ build/
 
 # Local tooling
 .claude/settings.local.json
+
+# Visualization screenshots / browser artifacts
+.playwright-mcp/
+/graph-*.png
