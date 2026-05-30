@@ -35,7 +35,12 @@ _DESC_RE = re.compile(
     r'content=["\'](.*?)["\']',
     re.IGNORECASE | re.DOTALL,
 )
-_USER_AGENT = "skc-enrich/0.1 (+https://github.com/; knowledge-curator)"
+# A browser-like UA: X's oEmbed (publish.x.com) and many sites 403 the default
+# python-httpx agent. Sent on every request via the client's default headers.
+_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
 
 
 def _html_to_text(fragment: str) -> str:
@@ -62,7 +67,7 @@ async def _enrich_x(client: httpx.AsyncClient, url: str) -> EnrichedLink:
 
 
 async def _enrich_web(client: httpx.AsyncClient, url: str) -> EnrichedLink:
-    resp = await client.get(url, headers={"User-Agent": _USER_AGENT})
+    resp = await client.get(url)
     resp.raise_for_status()
     body = resp.text[:200_000]  # titles/meta live near the top; cap the parse
     title = _TITLE_RE.search(body)
@@ -119,7 +124,10 @@ async def _enrich_items(settings: Settings, items: list[Item], existing: dict[st
     if pending:
         sem = asyncio.Semaphore(8)
         timeout = httpx.Timeout(settings.x_oembed_timeout)
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+        headers = {"User-Agent": _USER_AGENT}
+        async with httpx.AsyncClient(
+            timeout=timeout, follow_redirects=True, headers=headers
+        ) as client:
             resolved = await asyncio.gather(
                 *(_resolve(client, sem, u, settings.x_enrich_non_x_links) for u in pending)
             )

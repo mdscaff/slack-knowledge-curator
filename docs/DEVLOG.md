@@ -135,6 +135,34 @@ calls use `graph.traverse()`.
 > adapter against a new release in 30 minutes (and the one breaking change that
 > *didn't* bite us)."
 
+## 2026-05-30 — First live run on real data
+
+Ran ingest + enrich against the real personal channel (a self-DM, `D...` id —
+note: DMs need the `im:history` user-token scope, not `channels:history`).
+
+### Numbers
+- **392 messages** ingested (2 pages), 0 threads — a DM stream, not threaded.
+- **387/392 messages carry a link** — this channel is ~99% "link + a note".
+- **383 unique URLs: 279 X/Twitter, 104 other.** It's overwhelmingly an X.com
+  reading list. Validates the decision to make X enrichment first-class.
+- **Enrichment: 92.0% success** (358/389). Residual failures, all permanent:
+  13 X 403 (protected/suspended), 10 web 403 (Cloudflare/auth walls), 4 X 404 +
+  3 web 404 (deleted/dead), 1 other.
+
+### Learnings
+- **Default httpx User-Agent gets 403'd.** X's oEmbed (`publish.x.com`) and many
+  sites reject `python-httpx/*`. Setting a browser-like UA at the client level
+  helped — though most X 403s turned out to be protected/suspended accounts, not
+  UA-related. Net: a robustness win, not a silver bullet.
+- **Idempotent retry paid off as a design choice**, even if these particular
+  failures were permanent: re-running only re-hit the 31 non-`ok` links, not all
+  389. The cost of a retry scales with failures, not corpus size.
+- **The corpus shape should drive the taxonomy.** 279 founder/AI/eng tweets means
+  the emergent categories will skew there — good to know before M3/M4.
+
+> **Blog hook:** "What 392 saved Slack messages told me before I built the graph
+> — and the 8% the open web simply won't give you."
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback
