@@ -20,7 +20,11 @@ class EnrichedLink(BaseModel):
     author: Optional[str] = None
     title: Optional[str] = None
     text: Optional[str] = None
-    status: Literal["ok", "failed", "skipped"] = "ok"
+    # ok      = real content extracted (oembed / page meta)
+    # derived = fetch blocked (e.g. Cloudflare); title inferred from the URL slug
+    # failed  = nothing usable; skipped = not attempted
+    status: Literal["ok", "derived", "failed", "skipped"] = "ok"
+    source: Optional[str] = None  # "oembed" | "page" | "slug"
     error: Optional[str] = None
 
 

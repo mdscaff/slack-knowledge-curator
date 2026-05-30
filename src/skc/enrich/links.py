@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import html
 import re
-from urllib.parse import quote
+from urllib.parse import unquote, urlparse
 
 import httpx
 from rich.console import Console
@@ -50,6 +50,34 @@ def _html_to_text(fragment: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+# Cloudflare/anti-bot interstitials return a generic title instead of content.
+_CHALLENGE_TITLES = ("just a moment", "attention required", "access denied", "are you a robot")
+# Trailing Medium-style hex id on a slug, e.g. ...-c08c041bb744
+_SLUG_HASH = re.compile(r"-[0-9a-f]{8,}$", re.IGNORECASE)
+
+
+def _is_challenge_title(title: str | None) -> bool:
+    return bool(title) and any(c in title.lower() for c in _CHALLENGE_TITLES)
+
+
+def _slug_title(url: str) -> str | None:
+    """Derive a human-readable title from the last meaningful path segment.
+
+    Medium and many blogs use the article title as a kebab-case slug (often with
+    a trailing hex id). Good enough for classification when the page is blocked.
+    """
+    path = urlparse(url).path.rstrip("/")
+    if not path:
+        return None
+    seg = unquote(path.rsplit("/", 1)[-1])
+    seg = _SLUG_HASH.sub("", seg)  # drop trailing -<hexid>
+    words = [w for w in re.split(r"[-_]+", seg) if w and not w.isdigit()]
+    if len(words) < 2:  # "p", "123", single token → not a real title slug
+        return None
+    title = " ".join(words).strip()
+    return title[:1].upper() + title[1:] if title else None
+
+
 async def _enrich_x(client: httpx.AsyncClient, url: str) -> EnrichedLink:
     params = {"url": url, "dnt": "true", "omit_script": "true"}
     resp = await client.get(_OEMBED, params=params)
@@ -66,18 +94,31 @@ async def _enrich_x(client: httpx.AsyncClient, url: str) -> EnrichedLink:
     )
 
 
+def _derived_web_link(url: str, error: str | None = None) -> EnrichedLink:
+    """Build a slug-derived link, or a plain failure if no title can be inferred."""
+    slug = _slug_title(url)
+    if slug:
+        return EnrichedLink(type="web", url=url, title=slug, status="derived", source="slug")
+    return EnrichedLink(type="web", url=url, status="failed", error=error)
+
+
 async def _enrich_web(client: httpx.AsyncClient, url: str) -> EnrichedLink:
     resp = await client.get(url)
     resp.raise_for_status()
     body = resp.text[:200_000]  # titles/meta live near the top; cap the parse
-    title = _TITLE_RE.search(body)
+    title_m = _TITLE_RE.search(body)
+    title = _html_to_text(title_m.group(1)) if title_m else None
+    # A 200 that's actually a Cloudflare challenge → fall back to the slug.
+    if _is_challenge_title(title):
+        return _derived_web_link(url)
     desc = _DESC_RE.search(body)
     return EnrichedLink(
         type="web",
         url=str(resp.url),
-        title=_html_to_text(title.group(1)) if title else None,
+        title=title,
         text=_html_to_text(desc.group(1)) if desc else None,
         status="ok",
+        source="page",
     )
 
 
@@ -85,15 +126,20 @@ async def _resolve(
     client: httpx.AsyncClient, sem: asyncio.Semaphore, url: str, enrich_web: bool
 ) -> EnrichedLink:
     async with sem:
+        is_x = is_x_url(url)
         try:
-            if is_x_url(url):
+            if is_x:
                 return await _enrich_x(client, url)
             if enrich_web:
                 return await _enrich_web(client, url)
             return EnrichedLink(type="web", url=url, status="skipped")
-        except Exception as exc:  # network, HTTP, parse — keep the URL, flag it
-            kind = "x_post" if is_x_url(url) else "web"
-            return EnrichedLink(type=kind, url=url, status="failed", error=str(exc)[:200])
+        except Exception as exc:  # network, HTTP, parse
+            err = str(exc)[:200]
+            # A tweet's content can't be inferred from its numeric URL; a web
+            # article's usually can — fall back to the slug instead of failing.
+            if is_x:
+                return EnrichedLink(type="x_post", url=url, status="failed", error=err)
+            return _derived_web_link(url, error=err)
 
 
 def _iter_items(items: list[Item]):
@@ -166,6 +212,7 @@ def enrich_channel(settings: Settings, channel: str, *, dry_run: bool = False) -
         console.print(f"  [green]wrote {n} items[/] → {out_path}")
     console.print(
         f"  links: [green]{counts['ok']} ok[/], "
+        f"[cyan]{counts.get('derived', 0)} derived[/], "
         f"[red]{counts['failed']} failed[/], {counts['skipped']} skipped "
         f"({counts['x']} x-posts, {counts['web']} web)"
     )

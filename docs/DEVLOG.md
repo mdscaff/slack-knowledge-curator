@@ -163,6 +163,45 @@ note: DMs need the `im:history` user-token scope, not `channels:history`).
 > **Blog hook:** "What 392 saved Slack messages told me before I built the graph
 > — and the 8% the open web simply won't give you."
 
+## 2026-05-30 — Medium is a Cloudflare wall; slug-title fallback
+
+Dug into the 31 enrichment failures. **7 of the 10 web 403s were Medium**
+(`medium.com` + `*.medium.com` custom domains + the `gopubby.com` publication).
+
+### What's actually happening
+Medium serves a **Cloudflare JS challenge** ("Just a moment…") to any non-browser
+client. Confirmed it's not a header problem: even with a full set of browser
+headers (UA, Accept, Accept-Language, Referer) we still get `403` with title
+`Just a moment...`. A plain HTTP client can't pass it; only a real/headless
+browser executing the challenge JS can — and Cloudflare frequently blocks
+automated browsers too. (Member-only Medium stories are paywalled on top.)
+
+### The pragmatic fix: derive the title from the URL slug
+For **classification** we don't need the full article — Medium slugs *are* the
+title: `the-agent-ecosystem-formula-c08c041bb744` → "The Agent ecosystem
+formula". So we added a slug fallback:
+- New `EnrichedLink.status = "derived"` (+ `source` field) — honest signal that
+  the title was inferred, not fetched. Never conflate a guess with real content.
+- Detect Cloudflare interstitials by title ("just a moment", "attention
+  required", …) even on a `200`, and fall back to the slug.
+- On web fetch failure, derive from slug; **X failures stay failed** (a tweet's
+  text can't be inferred from its numeric URL). Opaque paths (`/p/<id>`, bare
+  domains) correctly yield no title rather than a fake one.
+
+### Result
+Re-ran enrich: **358 ok + 12 derived + 19 failed** → **95% of links now carry
+usable text** for the graph (was 92%). Remaining 19: 17 protected/deleted X
+posts + 2 opaque web URLs. Those need either the original author or a headless
+browser, and aren't worth chasing for v1.
+
+> **Blog hook:** "Medium's Cloudflare wall vs. my knowledge graph — and why the
+> URL slug was a better answer than a headless browser."
+
+### Optional later: headless-browser fallback
+A Playwright pass could try to render the truly-blocked pages, but Cloudflare may
+still win and it's heavy. Parking it; the slug fallback covers the classification
+need at ~zero cost.
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback
