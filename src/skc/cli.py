@@ -190,6 +190,26 @@ def query(
 
 
 @app.command()
+def visualize(
+    channel: str = typer.Option(None, "--channel", "-c"),
+    top: int = typer.Option(8, "--top", "-n", help="Number of top entities to feature."),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open the result."),
+) -> None:
+    """Render an interactive graph viz: top entities, toggles, click-to-source."""
+    from .graph import build_visualization
+
+    settings = load_settings()
+    try:
+        for ch in _resolve_channels(channel):
+            path = build_visualization(settings, ch, top_n=top)
+            console.print(f"[green]wrote[/] {path}")
+            if open_browser:
+                typer.launch(str(path))
+    except RuntimeError as exc:
+        _fail(exc)
+
+
+@app.command()
 def run(channel: str = typer.Option(None, "--channel", "-c")) -> None:
     """Run the full pipeline end-to-end."""
     console.print(_NOT_YET.format(m="M6"))

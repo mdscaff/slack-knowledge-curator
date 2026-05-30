@@ -358,6 +358,24 @@ color-coded hubs. Verified the toggles end-to-end with a headless browser
 > **Blog hook:** "Seeing my Slack brain: an interactive map of the 8 ideas I save
 > about most." (Lead image: the 8-hub graph.)
 
+## 2026-05-30 — Visualization promoted to a feature + click-to-source
+
+Moved the viz from a one-off script into the package (`skc.graph.visualize`) and
+added a first-class **`skc visualize`** command (`--top N`, `--open`); the old
+script is now a thin shim.
+
+### New: click-to-source
+Clicking any node lists the saved posts/articles that entity came from, as
+clickable links (with host + an @author/title/summary label). Provenance: match
+the graph entity name to each item's Claude-assigned entities/tags (whole-word
+text fallback), then surface that item's links. On the full graph, **78/90 shown
+nodes resolve to sources**. Verified in a headless browser — clicking `claude
+code` listed 12 items (Thariq's "Claude Code is All You Need", Cory House, an
+n8n-mcp repo); clicking a neighbor (`gstack`) showed its 2 Garry Tan posts.
+
+> **Blog hook:** "From entity to receipts: making every node in the graph click
+> back to the original post."
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback

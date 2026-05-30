@@ -46,6 +46,7 @@ messy, link-heavy data.
 | Classify | `skc classify` | ✅ implemented |
 | Taxonomy | `skc taxonomy` | ✅ implemented |
 | Graph | `skc graph` / `skc query` | ✅ implemented |
+| Visualize | `skc visualize` | ✅ interactive graph + click-to-source |
 | Orchestration | `skc run` / `skc status` | `run` 🔜 M6, `status` ✅ |
 
 ## Quick start
@@ -69,8 +70,12 @@ skc status
 
 # Later stages (after classify + graph build):
 skc query "what have I saved about AI agents?" --domain "AI"
-.venv-cognee/bin/python scripts/visualize_graph.py 8   # interactive viz → data/viz/graph.html
+skc visualize --channel C0123ABCD --top 8   # interactive graph → data/viz/<channel>.html
 ```
+
+The visualization features the top-N entities as toggle-able hubs and
+**click-to-source**: click any node to list the saved posts/articles it came
+from, as clickable links.
 
 ## Configuration
 
