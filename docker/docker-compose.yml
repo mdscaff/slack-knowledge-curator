@@ -1,0 +1,30 @@
+# Local Postgres for the Cognee graph stage.
+#
+# Uses the pgvector image so Cognee's vector adapter (pgvector) and graph tables
+# (graph_node / graph_edge) share one database. Port 5433 avoids any local
+# Postgres on 5432 — matches the cognee-community pgGraph adapter defaults.
+#
+# NOTE: this image does NOT ship the pgGraph `graph` C extension, so the
+# pgGraph adapter runs in its recursive-CTE SQL-fallback mode (correct results,
+# no traversal acceleration). To exercise the real extension you need a Postgres
+# image with pgGraph compiled in — see docs/cognee-postgres-vs-pggraph.md.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: skc-postgres
+    environment:
+      POSTGRES_USER: cognee
+      POSTGRES_PASSWORD: cognee
+      POSTGRES_DB: cognee
+    ports:
+      - "5433:5432"
+    volumes:
+      - skc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cognee -d cognee"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  skc_pgdata:
