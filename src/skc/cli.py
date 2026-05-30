@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
+from .classify import classify_channel
 from .config import load_settings
 from .enrich import enrich_channel
 from .ingest import ingest_channel
@@ -25,6 +27,12 @@ app = typer.Typer(
 console = Console()
 
 _NOT_YET = "[yellow]Not implemented yet[/] — see PRD.md milestone {m}."
+
+
+def _fail(exc: Exception) -> None:
+    """Print a clean (markup-escaped) error and exit non-zero."""
+    console.print(f"[bold red]Error:[/] {escape(str(exc))}")
+    raise typer.Exit(code=1)
 
 
 def _resolve_channels(channel: str | None) -> list[str]:
@@ -58,8 +66,7 @@ def ingest(
                 f"{result.threads_expanded} threads, latest ts={result.latest_ts}"
             )
     except RuntimeError as exc:
-        console.print(f"[bold red]Error:[/] {exc}")
-        raise typer.Exit(code=1) from None
+        _fail(exc)
 
 
 @app.command()
@@ -74,17 +81,24 @@ def enrich(
             console.print(f"[bold]Enriching[/] {ch}")
             enrich_channel(settings, ch, dry_run=dry_run)
     except RuntimeError as exc:
-        console.print(f"[bold red]Error:[/] {exc}")
-        raise typer.Exit(code=1) from None
+        _fail(exc)
 
 
 @app.command()
 def classify(
     channel: str = typer.Option(None, "--channel", "-c"),
     model: str = typer.Option(None, "--model", help="Override ANTHROPIC_MODEL."),
+    limit: int = typer.Option(None, "--limit", help="Classify at most N items (cheap sample)."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show plan + sample doc; no API calls."),
 ) -> None:
     """Summarize + classify each item with Claude → data/classified/."""
-    console.print(_NOT_YET.format(m="M3"))
+    settings = load_settings()
+    try:
+        for ch in _resolve_channels(channel):
+            console.print(f"[bold]Classifying[/] {ch}")
+            classify_channel(settings, ch, model=model, limit=limit, dry_run=dry_run)
+    except RuntimeError as exc:
+        _fail(exc)
 
 
 @app.command()
@@ -97,15 +111,39 @@ def taxonomy(
 
 
 @app.command()
-def graph(action: str = typer.Argument("build", help="build | reset")) -> None:
-    """Load the classified corpus into Cognee (pgGraph adapter)."""
-    console.print(_NOT_YET.format(m="M5"))
+def graph(
+    channel: str = typer.Option(None, "--channel", "-c"),
+    limit: int = typer.Option(None, "--limit", help="Load at most N classified items."),
+    reset: bool = typer.Option(False, "--reset", help="Prune existing Cognee data first."),
+) -> None:
+    """Build the Cognee knowledge graph from classified items (pgGraph + pgvector)."""
+    from .graph import build_graph
+
+    settings = load_settings()
+    try:
+        for ch in _resolve_channels(channel):
+            console.print(f"[bold]Building graph[/] for {ch}")
+            build_graph(settings, ch, limit=limit, reset=reset)
+    except RuntimeError as exc:
+        _fail(exc)
 
 
 @app.command()
-def query(text: str = typer.Argument(..., help="Natural-language question.")) -> None:
-    """Query the knowledge graph."""
-    console.print(_NOT_YET.format(m="M5"))
+def query(
+    text: str = typer.Argument(..., help="Natural-language question."),
+    type: str = typer.Option("GRAPH_COMPLETION", "--type", "-t", help="Cognee SearchType."),
+    top_k: int = typer.Option(10, "--top-k"),
+) -> None:
+    """Query the knowledge graph via Cognee."""
+    from .graph import query_graph
+
+    settings = load_settings()
+    try:
+        results = query_graph(settings, text, query_type=type, top_k=top_k)
+    except RuntimeError as exc:
+        _fail(exc)
+    for r in results:
+        console.print(r)
 
 
 @app.command()

@@ -202,6 +202,46 @@ A Playwright pass could try to render the truly-blocked pages, but Cloudflare ma
 still win and it's heavy. Parking it; the slug fallback covers the classification
 need at ~zero cost.
 
+## 2026-05-30 — M3 classify + M5 Cognee/pgGraph graph (built)
+
+Built the two big stages back-to-back.
+
+### Classify (Claude, structured tool output)
+- Each enriched item → a compact "document" (note + resolved link text) → Claude
+  returns a **forced tool call** with `summary, categories[], tags[], entities[],
+  confidence`. Categories are emergent `Domain / Subtopic` strings.
+- **Prompt caching** on the system instruction (bulk runs pay for it once / 5 min).
+- Idempotent (skip already-classified by id), concurrent (semaphore), `--limit`
+  for cheap samples, `--dry-run` renders a real document with no API call.
+
+### Graph (the showcase): Cognee `cognify` on the pgGraph backend
+- `_configure_cognee` points Cognee at the **all-Postgres** stack: graph =
+  `pggraph` (registered adapter), relational = postgres, vector = pgvector, LLM =
+  Anthropic, embeddings = OpenAI — all from `.env`.
+- We feed Cognee rich documents (our summary/categories/tags/entities as text)
+  and let `cognify` extract the knowledge graph; top-level category domains become
+  Cognee `node_set` tags (so `query` can filter by domain). Then we call the
+  adapter's `build_graph()` and report whether pgGraph is accelerated or in SQL
+  fallback. `query` uses `SearchType.GRAPH_COMPLETION`.
+- Lazy cognee import: the base CLI works without the heavy `[graph]` extra; the
+  `graph`/`query` commands give a friendly "install the extra" error otherwise.
+
+### Gotchas
+- **Rich ate `[graph]`** in an error string (parsed as a style tag). Fixed with a
+  shared `_fail()` that `escape()`s dynamic text.
+- **hatchling rejected the `git+` URL** in the `[graph]` extra until we set
+  `[tool.hatch.metadata] allow-direct-references = true`.
+- Two venvs in play: base `.venv` (no cognee) for ingest/enrich/classify, and
+  `.venv-cognee` (cognee 1.1.1 + adapter + skc) for the graph stage.
+
+> **Blog hook:** "Letting Cognee build the graph vs. building it myself — and why
+> I fed it my own classifications instead of raw text."
+
+### Still needed to run
+- `ANTHROPIC_API_KEY` (classify + Cognee LLM) and `OPENAI_API_KEY` (embeddings).
+- A **pgvector** Postgres. Note: the existing `cognee-pggraph-postgres` on 5433 is
+  plain `postgres:16` (no pgvector) — the graph stage needs the pgvector image.
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback

@@ -1,4 +1,5 @@
-"""Claude summarize + classify stage.
+"""Claude summarize + classify stage. See PRD.md §6.3."""
 
-Stub — implemented in milestone M3. See PRD.md §6.3.
-"""
+from .claude import classify_channel
+
+__all__ = ["classify_channel"]

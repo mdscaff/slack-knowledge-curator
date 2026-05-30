@@ -43,9 +43,9 @@ messy, link-heavy data.
 |-------|---------|--------|
 | Ingest | `skc ingest` | ✅ implemented |
 | Enrich | `skc enrich` | ✅ implemented |
-| Classify | `skc classify` | 🔜 M3 |
+| Classify | `skc classify` | ✅ implemented |
 | Taxonomy | `skc taxonomy` | 🔜 M4 |
-| Graph | `skc graph` / `skc query` | 🔜 M5 |
+| Graph | `skc graph` / `skc query` | ✅ implemented |
 | Orchestration | `skc run` / `skc status` | `run` 🔜 M6, `status` ✅ |
 
 ## Quick start
@@ -89,9 +89,9 @@ src/skc/
 ├── util.py           # link extraction
 ├── ingest/slack.py   # ✅ Slack Web API → data/raw/*.jsonl
 ├── enrich/links.py   # ✅ X oEmbed + page titles → data/enriched/*.jsonl
-├── classify/         # 🔜 Claude structured classification
-├── taxonomy/         # 🔜 emergent taxonomy
-└── graph/            # 🔜 Cognee + pgGraph loader
+├── classify/claude.py    # ✅ Claude structured classification → data/classified/
+├── taxonomy/             # 🔜 emergent taxonomy consolidation
+└── graph/cognee_loader.py # ✅ Cognee + pgGraph knowledge-graph build + query
 ```
 
 ## Related
