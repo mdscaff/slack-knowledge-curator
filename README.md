@@ -1,5 +1,10 @@
 # Slack Knowledge Curator (`skc`)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+![Cognee 1.1.1 verified](https://img.shields.io/badge/cognee-1.1.1%20verified-success.svg)
+![pgGraph adapter](https://img.shields.io/badge/graph-pgGraph%20%2B%20pgvector-blueviolet.svg)
+
 > Turn a personal Slack "save it for later" channel into an organized, queryable
 > **knowledge graph** — and showcase how to build one with
 > [Cognee](https://www.cognee.ai/) on Postgres using the community
@@ -26,6 +31,11 @@ This is both a useful tool and a **reference example for the Cognee open-source
 project** — it exercises the all-Postgres Cognee stack (relational + pgvector +
 graph tables) and the experimental pgGraph traversal adapter end-to-end on real,
 messy, link-heavy data.
+
+> **✅ Verified against Cognee 1.1.1** (released 2026-05-29). The pgGraph adapter
+> was audited and runtime-tested against the latest Cognee — CRUD, `build_graph`,
+> and neighbor/neighborhood traversal (incl. graceful SQL fallback) all pass. See
+> the audit and result in [docs/DEVLOG.md](docs/DEVLOG.md).
 
 ## Status
 
@@ -78,11 +88,18 @@ src/skc/
 ├── store.py          # JSONL read/write + cursors
 ├── util.py           # link extraction
 ├── ingest/slack.py   # ✅ Slack Web API → data/raw/*.jsonl
-├── enrich/           # 🔜 X oEmbed + page titles
+├── enrich/links.py   # ✅ X oEmbed + page titles → data/enriched/*.jsonl
 ├── classify/         # 🔜 Claude structured classification
 ├── taxonomy/         # 🔜 emergent taxonomy
 └── graph/            # 🔜 Cognee + pgGraph loader
 ```
+
+## Related
+
+- [Cognee](https://github.com/topoteretes/cognee) — the memory/knowledge-graph engine this builds on.
+- [pgGraph adapter](https://github.com/topoteretes/cognee-community/tree/main/packages/graph/pggraph) — the community graph adapter exercised here.
+- [docs/cognee-postgres-vs-pggraph.md](docs/cognee-postgres-vs-pggraph.md) — native Cognee Postgres vs. pgGraph, and the adapter's current gaps.
+- [docs/DEVLOG.md](docs/DEVLOG.md) — running build chronology and learnings.
 
 ## License
 
