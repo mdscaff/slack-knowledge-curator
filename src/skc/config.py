@@ -7,6 +7,7 @@ raise early with an actionable message instead of failing deep in an API call.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import Field
@@ -81,4 +82,11 @@ class Settings(BaseSettings):
 
 
 def load_settings() -> Settings:
+    # A blank exported env var (e.g. `export ANTHROPIC_API_KEY=` in a shell
+    # profile) shadows the real value in .env under pydantic-settings precedence.
+    # Drop blanks for our known settings so .env wins.
+    aliases = {f.alias for f in Settings.model_fields.values() if f.alias}
+    for name in aliases:
+        if os.environ.get(name, None) == "":
+            del os.environ[name]
     return Settings()

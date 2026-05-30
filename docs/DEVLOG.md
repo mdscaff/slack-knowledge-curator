@@ -242,6 +242,28 @@ Built the two big stages back-to-back.
 - A **pgvector** Postgres. Note: the existing `cognee-pggraph-postgres` on 5433 is
   plain `postgres:16` (no pgvector) — the graph stage needs the pgvector image.
 
+## 2026-05-30 — First classify run + a config gotcha
+
+Validated `claude-haiku-4-5` against the key (1-token ping) and ran a 15-item
+sample. Quality is good: confidence tracks content richness (a bare Zoom link →
+0.4; an AutoGen guide → 0.72), entities (products/people/orgs/places) are clean.
+
+### Gotcha: a blank env var shadows .env
+`skc classify` failed with "ANTHROPIC_API_KEY not set" even though the key was in
+`.env` (108 chars). Cause: the shell had `ANTHROPIC_API_KEY=''` exported, and
+under pydantic-settings an env var — even blank — outranks the dotenv file. Fix:
+`load_settings()` now drops blank env vars for known setting aliases so `.env`
+wins. (Users with a stray blank export in their profile should also remove it.)
+
+> **Blog hook:** "The empty environment variable that silently shadowed my .env."
+
+### Insight: per-item classification fragments the taxonomy
+15 items → 23 categories, almost all singletons (`Startups / Pricing`,
+`Startups / Distribution`, `Startups / Real Estate`…). Emergent per-item
+categories are inherently fragmented; a **consolidation pass** (M4) that merges
+them into a coherent tree is essential before the graph. Notably it's Claude-only
+— no embeddings — so it can run before the OpenAI key is in play.
+
 ### Open threads
 - pgGraph acceleration needs a Postgres with the `graph` C extension; managed
   hosts (incl. **Neon**, the chosen host) can't install it → runs in SQL-fallback
