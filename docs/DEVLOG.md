@@ -82,6 +82,55 @@ Behavioral changes to keep an eye on (not breakage):
 - TODO: run the adapter's `example.py` against cognee 1.1.1 on the Docker
   Postgres to turn this source audit into a runtime guarantee.
 
+### Gotcha: the pgGraph adapter isn't published to PyPI
+Tried `pip install cognee-community-graph-adapter-pggraph` → **"not found in the
+package registry."** The adapter only exists inside the `cognee-community`
+monorepo; there's no PyPI distribution. So consumers must install from the git
+subdirectory:
+
+```
+pip install "cognee-community-graph-adapter-pggraph @ \
+  git+https://github.com/topoteretes/cognee-community.git#subdirectory=packages/graph/pggraph"
+```
+
+Updated our `[graph]` extra accordingly. **Upstream opportunity #2:** publishing
+the adapter to PyPI (with a proper version) would make it dramatically easier to
+adopt — a high-leverage, low-effort community contribution and a natural thing
+for "the pgGraph expert" to own.
+
+> **Blog hook:** "The community adapter that wasn't on PyPI — packaging a Cognee
+> graph adapter so others can actually `pip install` it."
+
+### Runtime verification — PASS ✅
+Installed `cognee==1.1.1` + the adapter (from git) into an isolated venv and ran
+`scripts/verify_pggraph_cognee111.py` against a throwaway `pgvector/pgvector:pg16`
+Postgres (port 5434, removed after). Result:
+
+```
+cognee 1.1.1
+adapter class: PgGraphAdapter
+pgGraph ready: False (False == SQL fallback)
+build_graph: None
+neighbors of turing: ['Bletchley Park', 'Cryptography']
+2-hop node ids: ['bletchley', 'crypto', 'turing']
+edges in subgraph: 2
+RESULT: PASS ✅
+```
+
+This confirms at runtime what the source audit predicted:
+- The factory's new **`_GraphEngineHandle`** proxy is transparent — `graph.__class__`
+  correctly reports `PgGraphAdapter` and method calls proxy through.
+- The new **`graph_database_key`** kwarg is absorbed harmlessly.
+- **SQL fallback works** end-to-end on stock Postgres (no `graph` extension):
+  neighbor + 2-hop neighborhood traversal return correct results.
+
+So: **the pgGraph adapter is verified working on cognee 1.1.1.** When we point it
+at a pgGraph-enabled Postgres, `pgGraph ready` should flip to `True` and the same
+calls use `graph.traverse()`.
+
+> **Blog hook:** "From source audit to green checkmark: runtime-verifying a graph
+> adapter against a same-week major release."
+
 > **Blog hook:** "When a major dependency ships overnight: how to audit a graph
 > adapter against a new release in 30 minutes (and the one breaking change that
 > *didn't* bite us)."

@@ -22,7 +22,9 @@ dependencies = [
 graph = [
     "cognee>=1.1.1,<2",  # audited against v1.1.1 (released 2026-05-29); see docs/DEVLOG.md
     "asyncpg>=0.29",
-    "cognee-community-graph-adapter-pggraph>=0.1.0",
+    # The pgGraph adapter is NOT on PyPI — install from the cognee-community
+    # monorepo subdirectory. (Publishing it is a tracked upstream opportunity.)
+    "cognee-community-graph-adapter-pggraph @ git+https://github.com/topoteretes/cognee-community.git#subdirectory=packages/graph/pggraph",
 ]
 
 [project.scripts]
